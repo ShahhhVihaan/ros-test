@@ -1,6 +1,6 @@
 services:
   crm_test:
-    image: crm_test
+    image: ghcr.io/${GITHUB_REPOSITORY}/crm_test:jazzy
     build:
       context: ../
       dockerfile: docker/Dockerfile
