@@ -1,0 +1,24 @@
+name: CRM Test Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-jazzy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Jazzy Docker Image
+        run: docker compose -f docker/docker-compose.yaml build crm_test
+      
+      - name: Build Packages with Testing Enabled
+        run: docker compose -f docker/docker-compose.yaml run build-jazzy
+      
+      - name: Run Tests
+        run: docker compose -f docker/docker-compose.yaml run test-jazzy

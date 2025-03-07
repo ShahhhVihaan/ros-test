@@ -1,0 +1,49 @@
+services:
+  crm_test:
+    image: crm_test
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      args:
+        BASE_IMAGE: ros:jazzy
+    container_name: crm_test
+    stop_signal: SIGINT
+    network_mode: host
+    privileged: true
+    stdin_open: true
+    pid: host
+    ipc: host
+    tty: true
+    user: user
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      # Mount all packages from repo to the ROS workspace
+      - ../:/home/user/crm_test_ws/src/
+    environment:
+      - DISPLAY
+      - QT_X11_NO_MITSHM=1
+      - ROS_DOMAIN_ID=42
+      - ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+    command: bash
+    
+  build-jazzy:
+    image: crm_test
+    container_name: crm_build_jazzy
+    profiles: ["build-jazzy"]
+    depends_on:
+      - crm_test
+    stdin_open: true
+    tty: true
+    # Only build with testing enabled
+    command: bash -c "cd /home/user/crm_test_ws/ && colcon build --cmake-args -DBUILD_TESTING=ON"
+  
+  test-jazzy:
+    image: crm_test
+    container_name: crm_test_jazzy
+    profiles: ["test-jazzy"]
+    depends_on:
+      - crm_test
+    stdin_open: true
+    tty: true
+    # Run the tests (assumes build has completed)
+    command: bash -c "cd /home/user/crm_test_ws/ && colcon test && colcon test-result --all --verbose"
