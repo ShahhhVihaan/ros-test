@@ -19,6 +19,9 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix
       # Mount all packages from repo to the ROS workspace
       - ../:/home/user/crm_test_ws/src/
+      - ~/.ssh:/home/user/.ssh  # Mount SSH keys for Git access during local dev
+      - ~/.gitconfig:${HOME}/.gitconfig:ro
+      - /dev/dri:/dev/dri:cached # For GPU acceleration
     environment:
       - DISPLAY
       - QT_X11_NO_MITSHM=1
