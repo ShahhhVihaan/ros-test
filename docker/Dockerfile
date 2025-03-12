@@ -6,6 +6,9 @@ ARG UNAME=user
 ARG UID=1000
 ARG GID=$UID
 
+# Set DEV_ENV to true by default (for local development)
+ARG DEV_ENV=true
+
 # Remove any existing user with the same ID if it exists
 RUN if id -u $UID ; then userdel `id -un $UID` ; fi
 
@@ -23,20 +26,16 @@ RUN groupadd --gid $GID $UNAME \
 # Make default shell in Dockerfile bash instead of sh
 SHELL ["/bin/bash", "-c"]
 
-# Install dependencies first as root
+# Install essential dependencies (always needed)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libgmock-dev \
-    nano \
-    htop \
     apt-utils \
     ccache \
     clang \
     cmake \
-    git \
     lld \
     llvm \
-    vim \
     libglfw3-dev \
     python3-colcon-mixin \
     python3-colcon-common-extensions \
@@ -46,11 +45,23 @@ RUN apt-get update && \
     python3-rosdep \
     python3-vcstool \
     wget \
-    bash-completion \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install ROS-specific packages
+    # Conditionally install development tools only if DEV_ENV is true
+    RUN if [ "$DEV_ENV" = "true" ]; then \
+        apt-get update && \
+        apt-get install -y --no-install-recommends \
+        git \
+        nano \
+        htop \
+        bash-completion \
+        vim \
+        && apt-get clean && \
+        rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# Install CRM-specific ROS packages
 RUN apt-get update && \
     apt-get install -q -y --no-install-recommends \
     ros-jazzy-moveit \

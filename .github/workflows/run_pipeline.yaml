@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Build Jazzy Docker Image
-        run: docker compose -f docker/docker-compose.yaml build crm_test
+        run: docker compose -f docker/docker-compose.yaml build --build-arg DEV_ENV=false crm_test
       
       - name: Build Packages with Testing Enabled
         run: docker compose -f docker/docker-compose.yaml run build-jazzy
