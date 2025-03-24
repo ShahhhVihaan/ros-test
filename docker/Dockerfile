@@ -5,14 +5,11 @@ FROM $BASE_IMAGE
 ARG UNAME=user
 ARG UID=1000
 ARG GID=$UID
-
-# Set DEV_ENV to true by default (for local development)
 ARG DEV_ENV=true
 
 # Remove any existing user with the same ID if it exists
 RUN if id -u $UID ; then userdel `id -un $UID` ; fi
 
-# Prevent interactive messages in apt install
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Create the user with proper sudo access
@@ -23,7 +20,6 @@ RUN groupadd --gid $GID $UNAME \
     && echo $UNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$UNAME \
     && chmod 0440 /etc/sudoers.d/$UNAME
 
-# Make default shell in Dockerfile bash instead of sh
 SHELL ["/bin/bash", "-c"]
 
 # Install essential dependencies (always needed)
@@ -48,42 +44,68 @@ RUN apt-get update && \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-    # Conditionally install development tools only if DEV_ENV is true
-    RUN if [ "$DEV_ENV" = "true" ]; then \
-        apt-get update && \
-        apt-get install -y --no-install-recommends \
-        git \
-        nano \
-        htop \
-        bash-completion \
-        vim \
-        && apt-get clean && \
-        rm -rf /var/lib/apt/lists/*; \
-    fi
+# Install development tools if DEV_ENV is true
+RUN if [ "$DEV_ENV" = "true" ]; then \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    git \
+    nano \
+    htop \
+    bash-completion \
+    vim \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*; \
+fi
 
 # Install CRM-specific ROS packages
 RUN apt-get update && \
-    apt-get install -q -y --no-install-recommends \
+    apt-get install -y --no-install-recommends \
     ros-jazzy-moveit \
     ros-jazzy-ur \
     ros-jazzy-rmw-cyclonedds-cpp \
+    ros-jazzy-rviz2 \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Now switch to the user
+# Install dependencies for VNC, NoVNC, and GUI support
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    xfce4 \
+    xfce4-terminal \
+    tigervnc-standalone-server \
+    tigervnc-common \
+    tigervnc-tools \
+    python3-websockify \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install NoVNC and ensure launch.sh is executable
+# Install NoVNC and ensure novnc_proxy is executable
+RUN wget -qO- https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.tar.gz | tar xz -C /opt/ && \
+    ln -s /opt/noVNC-1.4.0 /opt/novnc && \
+    wget -qO- https://github.com/novnc/websockify/archive/refs/tags/v0.11.0.tar.gz | tar xz -C /opt/ && \
+    ln -s /opt/websockify-0.11.0 /opt/websockify && \
+    ln -s /opt/novnc/vnc.html /opt/novnc/index.html && \
+    chmod +x /opt/novnc/utils/novnc_proxy
+
+# Switch to user
 USER $UNAME
 WORKDIR /home/$UNAME
 
-# Create a custom workspace
+# Create ROS2 workspace
 ENV ROS2_WS=/home/$UNAME/crm_test_ws
 RUN mkdir -p ${ROS2_WS}/src
 
-# Setup bash configurations - these are just for interactive use
+# Setup bash configurations
 RUN echo ". /opt/ros/${ROS_DISTRO}/setup.bash" >> ~/.bashrc && \
     echo ". /etc/bash_completion" >> ~/.bashrc && \
-    echo "source /usr/share/bash-completion/bash_completion" >> ~/.bashrc && \
+    echo "source /usr/share/bash_completion/bash_completion" >> ~/.bashrc && \
     echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> ~/.bashrc && \
     echo "if [ -f ${ROS2_WS}/install/setup.bash ]; then . ${ROS2_WS}/install/setup.bash; fi" >> ~/.bashrc
+
+# Configure VNC (no password for simplicity)
+RUN mkdir -p ~/.vnc && \
+    touch ~/.vnc/passwd
 
 # Copy and set up the entrypoint script
 COPY docker/ros_entrypoint.sh /ros_entrypoint.sh
